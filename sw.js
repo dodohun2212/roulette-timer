@@ -1,7 +1,13 @@
 /* 룰렛 타이머 — 오프라인 캐시
-   한 번 열어두면 그 뒤로는 인터넷 없이도 실행됩니다. */
+ *
+ * 전략:
+ *   페이지(HTML) = 네트워크 우선 → 온라인이면 항상 최신, 오프라인이면 캐시
+ *   그 외(폰트 등) = 캐시 우선 → 빠르고 데이터 절약
+ *
+ * 이렇게 해야 코드를 고쳐서 push 했을 때 아이패드에도 반영됩니다.
+ */
 
-var CACHE = 'roulette-timer-v1';
+var CACHE = 'roulette-timer-v2';
 var FILES = ['./', './index.html'];
 
 self.addEventListener('install', function (e) {
@@ -27,20 +33,35 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
 
+  // 페이지 요청: 최신을 먼저 시도하고, 실패하면 캐시로 떨어진다
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .then(function (res) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
+          return res;
+        })
+        .catch(function () {
+          return caches.match('./index.html').then(function (hit) {
+            return hit || caches.match('./');
+          });
+        })
+    );
+    return;
+  }
+
+  // 나머지 자원: 캐시 우선
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       if (hit) return hit;
-
       return fetch(e.request).then(function (res) {
-        // 폰트 등 외부 자원도 한 번 받아오면 캐시해둔다
         if (res && (res.ok || res.type === 'opaque')) {
           var copy = res.clone();
           caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
         }
         return res;
       }).catch(function () {
-        // 오프라인이고 캐시에도 없으면, 최소한 페이지는 띄운다
-        if (e.request.mode === 'navigate') return caches.match('./index.html');
         return Response.error();
       });
     })
