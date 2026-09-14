@@ -5,22 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="룰렛 타이머">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#0A0F0C">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#13120D">
 <title>룰렛 타이머</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@200;400&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@200;400&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
 <style>
   :root {
-    --felt:    #0A0F0C;
-    --line:    #26332B;
-    --ivory:   #EDE7DC;
-    --dim:     #6E7B72;
-    --brass:   #C9A227;
-    --go:      #157A46;
-    --go-hi:   #1D9E59;
-    --stop:    #A8232A;
-    --stop-hi: #C93038;
-    --wait:    #1A231D;
+    --soil:     #13120D;   /* 흙 — 바탕 */
+    --line:     #3A3524;
+    --seed:     #EFE7D2;   /* 씨앗 — 본문 */
+    --dim:      #8A8468;
+    --sprout:   #9BCB3B;   /* 새싹 — 강조 */
+    --leaf:     #2F7D43;   /* 잎 — 시작 */
+    --leaf-hi:  #3D9B55;
+    --clay:     #B4472F;   /* 화분 — 정지 */
+    --clay-hi:  #CE5738;
+    --rest:     #23211A;
     --r: 26px;
   }
 
@@ -30,8 +30,8 @@
 
   body {
     margin: 0;
-    background: var(--felt);
-    color: var(--ivory);
+    background: var(--soil);
+    color: var(--seed);
     font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
     -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
@@ -45,102 +45,145 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    padding: 20px 18px 18px;
-    padding-block-start: max(20px, env(safe-area-inset-top));
-    padding-block-end: max(18px, env(safe-area-inset-bottom));
+    padding: 18px;
+    padding-block-start: max(18px, env(safe-area-inset-top));
+    padding-block-end: max(16px, env(safe-area-inset-bottom));
   }
 
-  .bar {
+  /* --- 이름표 --- */
+  .tag {
     flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: baseline; justify-content: space-between;
     gap: 12px; flex-wrap: wrap;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--line);
+    padding-bottom: 11px;
+    border-bottom: 1px dashed var(--line);
   }
-  .mark {
-    font-size: 12px; font-weight: 600;
-    letter-spacing: .22em; text-transform: uppercase;
-    color: var(--brass);
+  .who {
+    font-family: "Gowun Batang", serif;
+    font-size: 15px; font-weight: 700;
+    letter-spacing: .14em;
+    color: var(--sprout);
+  }
+  .who em {
+    font-style: normal; font-weight: 400;
+    color: var(--dim); letter-spacing: .1em;
+    margin-left: .55em;
   }
   .state {
     display: inline-flex; align-items: center; gap: 9px;
-    font-size: 13px; color: var(--dim); letter-spacing: .04em;
+    font-size: 13px; color: var(--dim); letter-spacing: .06em;
   }
   #dot {
-    width: 9px; height: 9px; border-radius: 50%;
+    width: 11px; height: 11px;
+    border-radius: 50% 0 50% 50%;
+    transform: rotate(-45deg);
     background: var(--line);
     transition: background .12s linear, box-shadow .12s linear;
   }
   #dot.lit {
-    background: var(--brass);
-    box-shadow: 0 0 10px 1px rgba(201, 162, 39, .55);
+    background: var(--sprout);
+    box-shadow: 0 0 11px 1px rgba(155, 203, 59, .5);
     transition: none;
   }
 
+  /* --- 시간 + 새싹 --- */
   .readout {
     flex: 0 0 auto;
-    display: flex; align-items: baseline; justify-content: center;
-    gap: .12em;
-    padding: 4px 0 2px;
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 16px;
+    padding: 6px 0 2px;
   }
+  .figures { display: flex; align-items: baseline; gap: .1em; }
   #time {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-weight: 200;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
-    font-size: clamp(56px, 13vh, 132px);
+    font-size: clamp(54px, 12.5vh, 124px);
     line-height: 1;
     letter-spacing: -.03em;
     color: var(--dim);
     transition: color .25s;
   }
-  #time.on { color: var(--ivory); }
-  .unit { font-size: clamp(18px, 3.2vh, 30px); font-weight: 400; color: var(--dim); }
+  #time.on { color: var(--seed); }
+  .unit {
+    font-size: clamp(17px, 3vh, 28px);
+    font-weight: 400; color: var(--dim);
+  }
 
+  /* 시간이 갈수록 자라는 새싹 */
+  #sprout {
+    width: clamp(34px, 7vh, 62px);
+    height: auto;
+    margin-bottom: 4px;
+    transform-origin: 50% 100%;
+    transform: scaleY(var(--g, .42)) scaleX(calc(.62 + var(--g, .42) * .38));
+    opacity: calc(.35 + var(--g, .42) * .65);
+    transition: transform .45s cubic-bezier(.2, .7, .3, 1), opacity .45s;
+  }
+  #sprout .stem {
+    stroke: var(--leaf); stroke-width: 3.4; stroke-linecap: round; fill: none;
+  }
+  #sprout .lf-a { fill: var(--leaf); }
+  #sprout .lf-b { fill: var(--sprout); }
+
+  /* --- 버튼 --- */
   #btn {
     flex: 1 1 auto;
     width: 100%;
-    min-height: 170px;
+    min-height: 168px;
     border: 0; border-radius: var(--r);
     display: flex; align-items: center; justify-content: center;
     font-family: inherit;
-    font-size: clamp(58px, 15vh, 150px);
+    font-size: clamp(56px, 14.5vh, 146px);
     font-weight: 700;
     letter-spacing: .1em;
-    color: var(--ivory);
-    background: var(--go);
-    box-shadow: inset 0 0 0 1px rgba(237, 231, 220, .09);
-    transition: background .2s, transform .09s, color .2s;
+    color: var(--seed);
+    background: var(--leaf);
+    box-shadow: inset 0 0 0 1px rgba(239, 231, 210, .1);
+    transition: background .2s, transform .09s, color .2s, font-size .2s;
   }
-  #btn.stop  { background: var(--stop); }
-  #btn.wait  { background: var(--wait); color: var(--dim); font-size: clamp(30px, 7vh, 66px); letter-spacing: .06em; }
-  #btn.press { transform: scale(.987); background: var(--go-hi); }
-  #btn.stop.press { background: var(--stop-hi); }
-  #btn:focus-visible { outline: 3px solid var(--brass); outline-offset: 4px; }
+  #btn.stop { background: var(--clay); }
+  #btn.wait {
+    background: var(--rest); color: var(--dim);
+    font-size: clamp(28px, 6.5vh, 62px); letter-spacing: .06em;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  #btn.press { transform: scale(.987); background: var(--leaf-hi); }
+  #btn.stop.press { background: var(--clay-hi); }
+  #btn:focus-visible { outline: 3px solid var(--sprout); outline-offset: 4px; }
 
   #hint {
-    flex: 0 0 auto; margin: 0; min-height: 17px;
-    text-align: center; font-size: 12.5px; color: var(--dim);
+    flex: 0 0 auto; margin: 0; min-height: 16px;
+    text-align: center; font-size: 12px; color: var(--dim);
     letter-spacing: .02em;
     transition: opacity .3s;
   }
   #hint.off { opacity: 0; }
 
   @media (prefers-reduced-motion: reduce) {
-    #btn, #time, #dot, #hint { transition: none; }
+    #btn, #time, #dot, #hint, #sprout { transition: none; }
   }
 </style>
 </head>
 <body>
 
 <div class="deck">
-  <header class="bar">
-    <span class="mark">Roulette Timer</span>
-    <span class="state"><i id="dot"></i><span id="status">대기 중</span></span>
+  <header class="tag">
+    <span class="who">식물 자치회<em>제비뽑기</em></span>
+    <span class="state"><i id="dot"></i><span id="status">파종 대기</span></span>
   </header>
 
   <div class="readout">
-    <span id="time">0.0</span><span class="unit">초</span>
+    <svg id="sprout" viewBox="0 0 44 52" aria-hidden="true">
+      <path class="stem" d="M22 50 L22 20"/>
+      <path class="lf-a" d="M22 30C11.5 30 6 23.5 6 15.5c9.6 0 15.4 5.6 16 14.5Z"/>
+      <path class="lf-b" d="M22 24C32.5 24 38 17.5 38 9.5c-9.6 0-15.4 5.6-16 14.5Z"/>
+    </svg>
+
+    <div class="figures">
+      <span id="time">0.0</span><span class="unit">초</span>
+    </div>
   </div>
 
   <button id="btn" type="button">시작</button>
@@ -152,87 +195,192 @@
 (function () {
   'use strict';
 
-  var TICK_FAST = 0.062;   // 도는 중 틱 간격(초)
-  var TICK_SLOW = 0.42;    // 감속 끝 틱 간격(초)
-  var DECEL     = 1.8;     // 감속에 걸리는 시간(초)
+  var TICK_FAST = 0.058;   // 도는 중 틱 간격(초)
+  var TICK_SLOW = 0.40;    // 감속 끝 틱 간격(초)
+  var DECEL     = 2.0;     // 감속에 걸리는 시간(초)
+  var GROW_FULL = 30;      // 새싹이 다 자라는 데 걸리는 시간(초)
 
   var btn    = document.getElementById('btn');
   var time   = document.getElementById('time');
   var hint   = document.getElementById('hint');
   var dot    = document.getElementById('dot');
   var status = document.getElementById('status');
+  var sprout = document.getElementById('sprout');
 
-  var ctx = null, master = null, noise = null;
+  var ctx = null, bus = null, shortNoise = null, longNoise = null;
+  var bedGain = null, bedNodes = [];
   var state = 'idle';                 // idle | running | stopping
   var sched = null, nextTick = 0, decelFrom = 0;
   var startedAt = 0, raf = null;
   var lastPress = 0, wake = null, blinks = [];
 
-  /* ---------- 오디오 ---------- */
+  /* ---------- 오디오 준비 ---------- */
   function audio() {
     if (ctx) return;
     var AC = window.AudioContext || window.webkitAudioContext;
     ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = 0.9;
-    master.connect(ctx.destination);
 
-    var n = Math.floor(ctx.sampleRate * 0.03);
-    noise = ctx.createBuffer(1, n, ctx.sampleRate);
-    var d = noise.getChannelData(0);
-    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    // 여러 소리가 겹쳐도 찌그러지지 않게 컴프레서를 물린다
+    var comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14;
+    comp.knee.value = 18;
+    comp.ratio.value = 5;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.18;
+
+    bus = ctx.createGain();
+    bus.gain.value = 0.9;
+    bus.connect(comp);
+    comp.connect(ctx.destination);
+
+    shortNoise = makeNoise(0.03, true);
+    longNoise  = makeNoise(2.0, false);
   }
 
-  function tick(t, vol) {
+  function makeNoise(sec, decay) {
+    var n = Math.floor(ctx.sampleRate * sec);
+    var b = ctx.createBuffer(1, n, ctx.sampleRate);
+    var d = b.getChannelData(0);
+    for (var i = 0; i < n; i++) {
+      d[i] = (Math.random() * 2 - 1) * (decay ? (1 - i / n) : 1);
+    }
+    return b;
+  }
+
+  /* ---------- 휠이 도는 저음 (바닥에 깔리는 소리) ---------- */
+  function bedOn() {
     var src = ctx.createBufferSource();
-    src.buffer = noise;
+    src.buffer = longNoise;
+    src.loop = true;
+
     var bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = 2200 + Math.random() * 900;
-    bp.Q.value = 1.7;
+    bp.frequency.value = 420;
+    bp.Q.value = 0.9;
+
+    // 회전하는 느낌을 주는 느린 흔들림
+    var lfo = ctx.createOscillator();
+    lfo.frequency.value = 2.7;
+    var lfoAmt = ctx.createGain();
+    lfoAmt.gain.value = 165;
+    lfo.connect(lfoAmt);
+    lfoAmt.connect(bp.frequency);
+
+    bedGain = ctx.createGain();
+    bedGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    bedGain.gain.linearRampToValueAtTime(0.19, ctx.currentTime + 0.3);
+
+    src.connect(bp); bp.connect(bedGain); bedGain.connect(bus);
+    src.start(); lfo.start();
+    bedNodes = [src, lfo];
+  }
+
+  function bedOff(t, fade) {
+    if (!bedGain) return;
+    bedGain.gain.cancelScheduledValues(t);
+    bedGain.gain.setValueAtTime(bedGain.gain.value, t);
+    bedGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+    bedNodes.forEach(function (n) { try { n.stop(t + fade + 0.1); } catch (e) {} });
+    bedNodes = [];
+    bedGain = null;
+  }
+
+  /* ---------- 공이 굴러가는 틱 ---------- */
+  function tick(t, vol) {
+    // 나무 림에 부딪히는 몸통 — 노이즈
+    var src = ctx.createBufferSource();
+    src.buffer = shortNoise;
+    var bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2300 + Math.random() * 950;
+    bp.Q.value = 1.8;
     var g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(0.02, vol), t + 0.0012);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
-    src.connect(bp); bp.connect(g); g.connect(master);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.033);
+    src.connect(bp); bp.connect(g); g.connect(bus);
     src.start(t); src.stop(t + 0.06);
+
+    // 금속성 — 짧은 고음 한 점
+    var o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = 3100 + Math.random() * 800;
+    var og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(Math.max(0.01, vol * 0.34), t + 0.001);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.022);
+    o.connect(og); og.connect(bus);
+    o.start(t); o.stop(t + 0.04);
+
     blink(t);
   }
 
-  // 무음 모드에서도 돌아가는 걸 눈으로 확인할 수 있게, 틱에 맞춰 표시등을 깜빡임
+  // 무음 모드에서도 돌아가는 걸 눈으로 확인할 수 있게, 틱에 맞춰 잎을 깜빡임
   function blink(t) {
     var wait = Math.max(0, (t - ctx.currentTime) * 1000);
     blinks.push(setTimeout(function () {
       dot.classList.add('lit');
-      blinks.push(setTimeout(function () { dot.classList.remove('lit'); }, 46));
+      blinks.push(setTimeout(function () { dot.classList.remove('lit'); }, 44));
     }, wait));
     if (blinks.length > 80) blinks = blinks.slice(-40);
   }
 
-  function ding(t) {
-    [[880, 0.30], [1318.5, 0.16]].forEach(function (p) {
+  /* ---------- 출발할 때 훅 올라가는 소리 ---------- */
+  function whoosh(t) {
+    var src = ctx.createBufferSource();
+    src.buffer = longNoise;
+    var bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 1.3;
+    bp.frequency.setValueAtTime(320, t);
+    bp.frequency.exponentialRampToValueAtTime(2600, t + 0.34);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.24, t + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+    src.connect(bp); bp.connect(g); g.connect(bus);
+    src.start(t); src.stop(t + 0.46);
+  }
+
+  /* ---------- 당첨 종소리 (3음) ---------- */
+  function chime(t) {
+    [[659.25, 0], [987.77, 0.105], [1318.51, 0.21]].forEach(function (n) {
+      var s = t + n[1];
+
       var o = ctx.createOscillator();
       o.type = 'sine';
-      o.frequency.value = p[0];
+      o.frequency.value = n[0];
       var g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(p[1], t + 0.006);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
-      o.connect(g); g.connect(master);
-      o.start(t); o.stop(t + 1.5);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.exponentialRampToValueAtTime(0.26, s + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 1.5);
+      o.connect(g); g.connect(bus);
+      o.start(s); o.stop(s + 1.6);
+
+      // 배음 한 겹 — 종처럼 들리게
+      var h = ctx.createOscillator();
+      h.type = 'sine';
+      h.frequency.value = n[0] * 2.01;
+      var hg = ctx.createGain();
+      hg.gain.setValueAtTime(0.0001, s);
+      hg.gain.exponentialRampToValueAtTime(0.075, s + 0.004);
+      hg.gain.exponentialRampToValueAtTime(0.0001, s + 0.7);
+      h.connect(hg); hg.connect(bus);
+      h.start(s); h.stop(s + 0.8);
     });
   }
 
+  /* ---------- 틱 스케줄러 ---------- */
   function pump() {
     var ahead = ctx.currentTime + 0.12;
     while (nextTick < ahead) {
       if (state === 'stopping') {
         var p = (nextTick - decelFrom) / DECEL;
         if (p >= 1) { settle(nextTick); return; }
-        tick(nextTick, 0.9 - 0.45 * p);
+        tick(nextTick, 0.92 - 0.42 * p);
         nextTick += TICK_FAST * Math.pow(TICK_SLOW / TICK_FAST, p);
       } else {
-        tick(nextTick, 0.9);
+        tick(nextTick, 0.92);
         nextTick += TICK_FAST * (0.9 + Math.random() * 0.2);
       }
     }
@@ -242,9 +390,13 @@
   function paint() {
     btn.className   = state === 'running' ? 'stop'      : state === 'stopping' ? 'wait'      : '';
     btn.textContent = state === 'running' ? '정지'      : state === 'stopping' ? '멈추는 중' : '시작';
-    status.textContent = state === 'running' ? '도는 중' : state === 'stopping' ? '감속'      : '대기 중';
+    status.textContent = state === 'running' ? '섞는 중' : state === 'stopping' ? '마무리'   : '파종 대기';
     time.className = state === 'idle' ? '' : 'on';
     hint.className = state === 'idle' ? '' : 'off';
+  }
+
+  function grow(sec) {
+    sprout.style.setProperty('--g', (0.42 + 0.58 * Math.min(1, sec / GROW_FULL)).toFixed(3));
   }
 
   function show(sec) {
@@ -256,7 +408,8 @@
 
   function loop() {
     if (state !== 'running') return;
-    show((Date.now() - startedAt) / 1000);
+    var sec = (Date.now() - startedAt) / 1000;
+    show(sec); grow(sec);
     raf = requestAnimationFrame(loop);
   }
 
@@ -264,6 +417,8 @@
     state = 'running';
     startedAt = Date.now();
     nextTick = ctx.currentTime + 0.02;
+    whoosh(ctx.currentTime);
+    bedOn();
     sched = setInterval(pump, 25);
     pump();
     paint(); loop(); lock();
@@ -277,12 +432,25 @@
     paint();
   }
 
+  // 감속이 끝나면: 공이 칸에 떨어져 몇 번 튀고 → 종소리
   function settle(t) {
     clearInterval(sched); sched = null;
-    ding(t);
-    state = 'idle';
-    paint(); release();
-    setTimeout(function () { dot.classList.remove('lit'); }, 200);
+    bedOff(t, 0.4);
+
+    var at = t;
+    for (var i = 0; i < 7; i++) {
+      tick(at, 0.85 * Math.pow(0.79, i));
+      at += 0.048 + Math.random() * 0.1 + i * 0.014;
+    }
+
+    var end = at + 0.12;
+    chime(end);
+
+    setTimeout(function () {
+      state = 'idle';
+      paint(); release();
+      dot.classList.remove('lit');
+    }, Math.max(0, (end - ctx.currentTime) * 1000));
   }
 
   /* ---------- 화면 꺼짐 방지 ---------- */
@@ -311,7 +479,7 @@
     audio();
     if (ctx.state === 'suspended') ctx.resume();
 
-    if (state === 'idle') go();
+    if (state === 'idle') { grow(0); go(); }
     else if (state === 'running') halt();
   }
 
@@ -325,7 +493,7 @@
   btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
-  paint();
+  paint(); grow(0);
 
   /* ---------- 오프라인 캐시 ---------- */
   if ('serviceWorker' in navigator) {
