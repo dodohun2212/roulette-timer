@@ -200,6 +200,10 @@
   var DECEL     = 2.0;     // 감속에 걸리는 시간(초)
   var GROW_FULL = 30;      // 새싹이 다 자라는 데 걸리는 시간(초)
 
+  var BPM        = 132;    // 배경 음악 빠르기
+  var MUSIC_VOL  = 0.5;    // 배경 음악 크기 (틱 소리를 덮지 않게)
+  var SWING      = 0.055;  // 뒷박을 뒤로 미는 정도 — 스윙감
+
   var btn    = document.getElementById('btn');
   var time   = document.getElementById('time');
   var hint   = document.getElementById('hint');
@@ -370,6 +374,132 @@
     });
   }
 
+  /* ---------- 배경 음악 ----------
+     래그타임풍 4마디 루프. 음원 파일 없이 코드로 직접 연주한다.
+     한 마디에 코드 하나: C6 → A7 → Dm7 → G7 */
+
+  var CHORDS = [
+    { root: 48, notes: [60, 64, 67, 69] },   // C6
+    { root: 45, notes: [61, 64, 67, 69] },   // A7
+    { root: 50, notes: [60, 62, 65, 69] },   // Dm7
+    { root: 43, notes: [59, 62, 65, 67] }    // G7
+  ];
+
+  var musicGain = null, musicStep = 0, musicNext = 0, musicOn = false;
+
+  function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function musicStart() {
+    musicGain = ctx.createGain();
+    musicGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(MUSIC_VOL, ctx.currentTime + 0.45);
+    musicGain.connect(bus);
+    musicStep = 0;
+    musicNext = ctx.currentTime + 0.06;
+    musicOn = true;
+  }
+
+  function musicStop(t, fade) {
+    if (!musicGain) return;
+    musicOn = false;
+    musicGain.gain.cancelScheduledValues(t);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, t);
+    musicGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+    musicGain = null;
+  }
+
+  // 베이스 — 짧고 통통 튀게
+  function bass(t, midi) {
+    var o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = mtof(midi);
+    var lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 850;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    o.connect(lp); lp.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + 0.36);
+  }
+
+  // 코드 스탭 — 피아노 오른손처럼 뒷박을 친다
+  function stab(t, notes, vol) {
+    notes.forEach(function (m) {
+      var o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = mtof(m);
+      var lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 3000;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.007);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+      o.connect(lp); lp.connect(g); g.connect(musicGain);
+      o.start(t); o.stop(t + 0.28);
+    });
+  }
+
+  // 하이햇
+  function hat(t, vol) {
+    var s = ctx.createBufferSource();
+    s.buffer = shortNoise;
+    var hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7200;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.048);
+    s.connect(hp); hp.connect(g); g.connect(musicGain);
+    s.start(t); s.stop(t + 0.07);
+  }
+
+  // 마디 머리를 짚어주는 종소리
+  function sparkle(t, midi) {
+    var o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = mtof(midi);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.11, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+    o.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + 0.9);
+  }
+
+  function musicPump() {
+    if (!musicOn || !musicGain) return;
+
+    var spb  = 60 / BPM;        // 한 박
+    var half = spb / 2;         // 8분음표
+    var ahead = ctx.currentTime + 0.2;
+
+    while (musicNext < ahead) {
+      var i    = musicStep % 32;      // 8분음표 32개 = 4마디
+      var bar  = Math.floor(i / 8);
+      var beat = i % 8;
+      var off  = beat % 2 === 1;      // 뒷박
+      var ch   = CHORDS[bar];
+      var t    = musicNext + (off ? half * SWING * 2 : 0);
+
+      hat(t, off ? 0.05 : 0.095);
+
+      if (beat === 0 || beat === 4) bass(t, ch.root);
+      if (beat === 6) bass(t, ch.root + 7);          // 다음 마디로 넘어가는 걸음
+
+      if (beat === 3 || beat === 7) stab(t, ch.notes, 0.13);
+      if (beat === 1) stab(t, ch.notes, 0.075);
+
+      if (beat === 0 && (bar === 0 || bar === 2)) sparkle(t, ch.notes[3] + 12);
+
+      musicStep++;
+      musicNext += half;
+    }
+  }
+
   /* ---------- 틱 스케줄러 ---------- */
   function pump() {
     var ahead = ctx.currentTime + 0.12;
@@ -419,8 +549,9 @@
     nextTick = ctx.currentTime + 0.02;
     whoosh(ctx.currentTime);
     bedOn();
-    sched = setInterval(pump, 25);
-    pump();
+    musicStart();
+    sched = setInterval(function () { pump(); musicPump(); }, 25);
+    pump(); musicPump();
     paint(); loop(); lock();
   }
 
@@ -429,6 +560,7 @@
     cancelAnimationFrame(raf);
     state = 'stopping';
     decelFrom = ctx.currentTime;
+    musicStop(ctx.currentTime, DECEL * 0.85);  // 감속하는 동안 음악도 같이 잦아든다
     paint();
   }
 
@@ -436,6 +568,7 @@
   function settle(t) {
     clearInterval(sched); sched = null;
     bedOff(t, 0.4);
+    musicStop(t, 0.3);        // 혹시 남아 있으면 확실히 정리
 
     var at = t;
     for (var i = 0; i < 7; i++) {
