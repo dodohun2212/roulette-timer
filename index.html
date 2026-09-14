@@ -386,17 +386,42 @@
   ];
 
   var musicGain = null, musicStep = 0, musicNext = 0, musicOn = false;
+  var track = null, trackSrc = null, trackTried = false;
 
   function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  /* music.mp3 를 폴더에 넣어두면 그 곡을 쓴다.
+     파일이 없으면 아래 합성 루프가 그대로 돌아간다. */
+  function loadTrack() {
+    if (trackTried) return;
+    trackTried = true;
+    fetch('music.mp3')
+      .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(function (ab) {
+        return new Promise(function (ok, no) { ctx.decodeAudioData(ab, ok, no); });
+      })
+      .then(function (buf) { track = buf; })
+      .catch(function () { track = null; });
+  }
 
   function musicStart() {
     musicGain = ctx.createGain();
     musicGain.gain.setValueAtTime(0.0001, ctx.currentTime);
     musicGain.gain.linearRampToValueAtTime(MUSIC_VOL, ctx.currentTime + 0.45);
     musicGain.connect(bus);
-    musicStep = 0;
-    musicNext = ctx.currentTime + 0.06;
-    musicOn = true;
+
+    if (track) {
+      trackSrc = ctx.createBufferSource();
+      trackSrc.buffer = track;
+      trackSrc.loop = true;
+      trackSrc.connect(musicGain);
+      trackSrc.start();
+      musicOn = false;                 // 합성 루프는 쉰다
+    } else {
+      musicStep = 0;
+      musicNext = ctx.currentTime + 0.06;
+      musicOn = true;
+    }
   }
 
   function musicStop(t, fade) {
@@ -405,6 +430,10 @@
     musicGain.gain.cancelScheduledValues(t);
     musicGain.gain.setValueAtTime(musicGain.gain.value, t);
     musicGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+    if (trackSrc) {
+      try { trackSrc.stop(t + fade + 0.05); } catch (e) {}
+      trackSrc = null;
+    }
     musicGain = null;
   }
 
@@ -609,7 +638,7 @@
     if (now - lastPress < 280) return;       // 중복 탭 방지
     lastPress = now;
 
-    audio();
+    audio(); loadTrack();
     if (ctx.state === 'suspended') ctx.resume();
 
     if (state === 'idle') { grow(0); go(); }
@@ -627,6 +656,12 @@
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
   paint(); grow(0);
+
+  /* 페이지가 뜨자마자 음원을 미리 읽어둔다.
+     오디오는 첫 탭 전까지 잠들어 있지만, 디코딩은 미리 해둘 수 있다. */
+  window.addEventListener('load', function () {
+    try { audio(); loadTrack(); } catch (e) {}
+  });
 
   /* ---------- 오프라인 캐시 ---------- */
   if ('serviceWorker' in navigator) {
