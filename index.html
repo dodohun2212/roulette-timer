@@ -69,6 +69,14 @@
     color: var(--dim); letter-spacing: .1em;
     margin-left: .55em;
   }
+  /* 모종 이름표의 일련번호처럼 — 어느 버전을 보고 있는지 확인용 */
+  .who .lot {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; font-weight: 400;
+    letter-spacing: .06em;
+    color: var(--line);
+    margin-left: .7em;
+  }
   .state {
     display: inline-flex; align-items: center; gap: 9px;
     font-size: 13px; color: var(--dim); letter-spacing: .06em;
@@ -170,7 +178,7 @@
 
 <div class="deck">
   <header class="tag">
-    <span class="who">한평정원<em>제비뽑기</em></span>
+    <span class="who">한평정원<em>제비뽑기</em><span class="lot">No.7</span></span>
     <span class="state"><i id="dot"></i><span id="status">파종 대기</span></span>
   </header>
 
