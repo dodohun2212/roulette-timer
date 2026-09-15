@@ -178,7 +178,7 @@
 
 <div class="deck">
   <header class="tag">
-    <span class="who">한평정원<em>제비뽑기</em><span class="lot">No.7</span></span>
+    <span class="who">한평정원<em>제비뽑기</em><span class="lot">No.8</span></span>
     <span class="state"><i id="dot"></i><span id="status">파종 대기</span></span>
   </header>
 
@@ -225,6 +225,7 @@
   var sched = null, nextTick = 0, decelFrom = 0;
   var startedAt = 0, raf = null;
   var lastPress = 0, wake = null, blinks = [];
+  var HINT = hint.textContent;
 
   /* ---------- 오디오 준비 ---------- */
   function audio() {
@@ -401,21 +402,47 @@
 
   var musicGain = null, musicStep = 0, musicNext = 0, musicOn = false;
   var track = null, trackSrc = null, trackTried = false;
+  var trackBytes = null, unlocked = false;
 
   function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
   /* music.mp3 를 폴더에 넣어두면 그 곡을 쓴다.
-     파일이 없으면 아래 합성 루프가 그대로 돌아간다. */
-  function loadTrack() {
-    if (trackTried) return;
-    trackTried = true;
+     파일이 없으면 아래 합성 루프가 그대로 돌아간다.
+
+     받아오는 것과 해독하는 것을 나눈 이유:
+     파일을 받는 데는 오디오 장치가 필요 없지만, 해독하려면 필요하다.
+     그런데 iOS는 사용자가 화면을 만지기 전에 켜둔 오디오를 잠가버리므로,
+     바이트만 미리 받아두고 해독은 첫 탭 이후로 미룬다. */
+  function prefetchTrack() {
     fetch('music.mp3')
       .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
-      .then(function (ab) {
-        return new Promise(function (ok, no) { ctx.decodeAudioData(ab, ok, no); });
-      })
-      .then(function (buf) { track = buf; })
-      .catch(function () { track = null; });
+      .then(function (ab) { trackBytes = ab; })
+      .catch(function () { trackBytes = null; });
+  }
+
+  function decodeTrack() {
+    if (track || trackTried || !trackBytes) return;
+    trackTried = true;
+    var ab = trackBytes;
+    trackBytes = null;
+    try {
+      ctx.decodeAudioData(ab,
+        function (buf) { track = buf; },
+        function () { track = null; });
+    } catch (e) { track = null; }
+  }
+
+  // iOS는 첫 제스처에 소리를 한 번 내보내야 오디오를 풀어준다
+  function unlock() {
+    if (unlocked) return;
+    unlocked = true;
+    try {
+      var b = ctx.createBuffer(1, 1, 22050);
+      var s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (e) {}
   }
 
   function musicStart() {
@@ -652,11 +679,32 @@
     if (now - lastPress < 280) return;       // 중복 탭 방지
     lastPress = now;
 
-    audio(); loadTrack();
-    if (ctx.state === 'suspended') ctx.resume();
+    audio();        // 첫 탭에서 만든다 — iOS가 잠그지 않는 유일한 시점
+    unlock();
+    decodeTrack();
+    hint.textContent = HINT;        // 지난번 경고가 남아 있으면 지운다
 
-    if (state === 'idle') { grow(0); go(); }
-    else if (state === 'running') halt();
+    var act = function () {
+      if (state === 'idle') { grow(0); go(); watchAudio(); }
+      else if (state === 'running') halt();
+    };
+
+    // 잠긴 상태로 소리를 예약하면 그냥 묻히므로, 깨어난 뒤에 시작한다
+    if (ctx.state === 'suspended') {
+      var p = ctx.resume();
+      if (p && p.then) p.then(act, act); else act();
+    } else {
+      act();
+    }
+  }
+
+  // 그래도 소리가 안 나는 기기에서 원인을 화면에 알려준다
+  function watchAudio() {
+    setTimeout(function () {
+      if (!ctx || ctx.state === 'running') return;
+      hint.textContent = '소리가 잠겨 있습니다 — 화면을 한 번 더 눌러주세요';
+      hint.className = '';
+    }, 400);
   }
 
   btn.addEventListener('pointerdown', function (e) { btn.classList.add('press'); press(e); });
@@ -671,11 +719,8 @@
 
   paint(); grow(0);
 
-  /* 페이지가 뜨자마자 음원을 미리 읽어둔다.
-     오디오는 첫 탭 전까지 잠들어 있지만, 디코딩은 미리 해둘 수 있다. */
-  window.addEventListener('load', function () {
-    try { audio(); loadTrack(); } catch (e) {}
-  });
+  /* 음원 파일만 미리 받아둔다. 오디오 장치는 건드리지 않는다. */
+  window.addEventListener('load', prefetchTrack);
 
   /* ---------- 오프라인 캐시 ---------- */
   if ('serviceWorker' in navigator) {
